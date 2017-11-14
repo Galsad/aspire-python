@@ -1,0 +1,29 @@
+
+This Code should enable you run basic nufft functions easily
+
+The directory contains 4 folders:
+1) extern - fortran files implement nufft functions
+2) lib - python and matlab modules used by functions in programs
+3) tests - tests and benchmarks for functions in programs
+4) programs - nufft functions can be run from command line
+
+tests
+-----
+1) to run all tests run the following command:
+python -m unittest discover (-v to verbose)
+2) to run all benchmarks run the following command:
+python -m nufft_benchmark -- this can take a while...
+
+programs
+-----
+you can run the following commands from shell:
+1) ./rand_rots.py (n, output) - random n rotation matrices and save them to output
+2) ./generate_random_volumes.py (n, output) - random volume n x n x n and save to output
+3) ./vol_project.py (vol, rots, output) - project vol with rots and save to output
+4) ./update_nufft.sh (n) - compile the fortran nufft function and creates an pyf module
+the function in module can be called from any python module. To determine input of every
+function, you need to change manually the relevant pyf files, for example, if you want to change
+the function nufft1d1f90 you need search for this function in nufft1df90.f, see the relevant
+parameters and change them in nufft1df90.pyf. Notice that you can also determine the type of
+each variable in the input and the output and you can add/change some basic checks on them.
+
