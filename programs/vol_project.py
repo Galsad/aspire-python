@@ -4,8 +4,8 @@ import argparse
 
 import mrcfile
 import numpy as np
-from cfft import *
-from nufft_cims import py_nufft
+from lib.cfft import *
+from lib.nufft_cims import py_nufft
 
 import rand_mat
 

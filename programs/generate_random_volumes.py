@@ -21,8 +21,8 @@ def rand_vol(n, output):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="generate a random volume mrc file")
-    parser.add_argument("n", metavar="volume size", type=int,
-                        help="sizse of volume")
+    parser.add_argument("volume size", metavar="n", type=int,
+                        help="size of volume")
     parser.add_argument("output", metavar="output", type=str,
                         help="output path of the volume")
 

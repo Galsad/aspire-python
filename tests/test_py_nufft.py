@@ -3,9 +3,9 @@ import logging
 import sys
 import unittest
 
-import nudft
+from lib import nudft
 import numpy as np
-from nufft_cims import py_nufft
+from lib.nufft_cims import py_nufft
 
 logger = logging.getLogger()
 logger.level = logging.DEBUG

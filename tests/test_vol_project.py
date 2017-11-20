@@ -2,7 +2,7 @@
 import unittest
 
 import numpy as np
-import vol_project
+from programs import vol_project
 
 
 class vol_project_unittest(unittest.TestCase):

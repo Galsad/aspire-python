@@ -59,7 +59,7 @@ def load_rot_mat(rot_file):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="random rotation matrices and save them to a pickle file")
-    parser.add_argument('n', metavar='number of matrices', type=int,
+    parser.add_argument('number_of_matrices', metavar='n', type=int,
                         help='amount of matrices to random')
     parser.add_argument('output', metavar='output', type=str,
                         help='output file')
