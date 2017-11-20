@@ -65,4 +65,4 @@ if __name__ == "__main__":
                         help='output file')
 
     args = parser.parse_args()
-    randrot(args.n, args.output)
+    randrot(args.number_of_matrices, args.output)

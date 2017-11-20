@@ -26,7 +26,8 @@ class nufft_unitest(unittest.TestCase):
         '''
         fourier_pts = np.random.uniform(-np.pi, np.pi, n)
         sig = np.random.uniform(-1, 1, n) + 1j * np.zeros(n)
-        fortran_results = py_nufft.forward1d(fourier_pts, sig)[0]
+        py_nufft_obj = py_nufft.factory('nufft')
+        fortran_results = py_nufft_obj.forward1d(fourier_pts, sig)[0]
         python_results = nudft.nudft1(sig, fourier_pts)
 
         self.assertTrue(np.sum(
@@ -41,7 +42,8 @@ class nufft_unitest(unittest.TestCase):
         '''
         fourier_pts = np.random.uniform(-np.pi, np.pi, n)
         sig_f = np.random.uniform(-1, 1, n) + 1j * np.zeros(n)
-        fortran_results = py_nufft.adjoint1d(fourier_pts, sig_f)[0]
+        py_nufft_obj = py_nufft.factory('nufft')
+        fortran_results = py_nufft_obj.adjoint1d(fourier_pts, sig_f)[0]
         python_results = nudft.anudft1(sig_f, fourier_pts, n)
 
         self.assertTrue(np.sum(
@@ -58,7 +60,8 @@ class nufft_unitest(unittest.TestCase):
         fourier_pts_y = np.random.uniform(-np.pi, np.pi, n)
         fourier_pts = np.array(zip(fourier_pts_x, fourier_pts_y))
         im = np.random.uniform(-1, 1, n * n).reshape(n, n)
-        fortran_results = py_nufft.forward2d(fourier_pts, im)[0]
+        py_nufft_obj = py_nufft.factory('nufft')
+        fortran_results = py_nufft_obj.forward2d(fourier_pts, im)[0]
         python_results = nudft.nudft2(im, fourier_pts)
 
         self.assertTrue(
@@ -76,7 +79,8 @@ class nufft_unitest(unittest.TestCase):
         fourier_pts_y = np.random.uniform(-np.pi, np.pi, n)
         fourier_pts = np.array(zip(fourier_pts_x, fourier_pts_y))
         im_f = np.random.uniform(-1, 1, n) + 1j * np.zeros(n)
-        fortran_results = py_nufft.adjoint2d(fourier_pts, im_f)[0]
+        py_nufft_obj = py_nufft.factory('nufft')
+        fortran_results = py_nufft_obj.adjoint2d(fourier_pts, im_f)[0]
         python_results = nudft.anudft2(im_f, fourier_pts, n)
 
         self.assertTrue(np.sum(
@@ -96,7 +100,8 @@ class nufft_unitest(unittest.TestCase):
             zip(fourier_pts_x, fourier_pts_y, fourier_pts_z))
         vol = np.random.uniform(-1, 1, n * n * n).reshape(n, n, n)
 
-        fortran_results = py_nufft.forward3d(fourier_pts, vol)[0]
+        py_nufft_obj = py_nufft.factory('nufft')
+        fortran_results = py_nufft_obj.forward3d(fourier_pts, vol)[0]
         python_results = nudft.nudft3(vol, fourier_pts)
 
         self.assertTrue(
@@ -117,8 +122,8 @@ class nufft_unitest(unittest.TestCase):
         fourier_pts = np.array(
             zip(fourier_pts_x, fourier_pts_y, fourier_pts_z))
         vol_f = np.random.uniform(-1, 1, n) + 1j * np.zeros(n)
-
-        fortran_results = py_nufft.adjoint3d(fourier_pts, vol_f)[0]
+        py_nufft_obj = py_nufft.factory('nufft')
+        fortran_results = py_nufft_obj.adjoint3d(fourier_pts, vol_f)[0]
         python_results = nudft.anudft3(vol_f, fourier_pts, n)
 
         self.assertTrue(np.sum(

@@ -1,0 +1,13 @@
+export WORKINGDIR=${HOME}
+export NUFFTDIR=${WORKINGDIR}/py-nufft
+export PATH=${PATH}:${NUFFTDIR}/lib
+export PATH=${PATH}:${NUFFTDIR}/extern
+export PATH=${PATH}:${NUFFTDIR}/tests
+export PATH=${PATH}:${NUFFTDIR}/programs
+export PATH=${PATH}:${NUFFTDIR}
+export PYTHONPATH=${PYTHONPATH}:${NUFFTDIR}/lib
+export PYTHONPATH=${PYTHONPATH}:${NUFFTDIR}/extern
+export PYTHONPATH=${PYTHONPATH}:${NUFFTDIR}/tests
+export PYTHONPATH=${PYTHONPATH}:${NUFFTDIR}/programs
+export PYTHONPATH=${PYTHONPATH}:${NUFFTDIR}
+echo "DONE!"
