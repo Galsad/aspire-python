@@ -1,6 +1,5 @@
 import numpy as np
 
-
 def nudft1(sig, fourier_pts):
     """
     Non-uniform discrete Fourier transform (1D)

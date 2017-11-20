@@ -1,10 +1,11 @@
 #!/opt/anaconda2/bin/python
 
-import nufft1df90
-import nufft2df90
-import nufft3df90
+from extern import nufft1df90
+from extern import nufft2df90
+from extern import nufft3df90
 
-import nudft
+from lib import nudft
+
 
 class py_nufft():
     def __init__(self):
