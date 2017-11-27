@@ -36,8 +36,8 @@ def anudft1(sig_f, fourier_pts, sz):
     :return: An array of size (sz) represents the adjoint Fourier transform
     of sig_f at frequencies fourier_pts.
     """
-    grid = np.arange(np.ceil(-len(sig_f) / 2.),
-                     np.ceil(len(sig_f) / 2.)).astype(np.complex64)
+    grid = np.arange(np.ceil(-sz / 2.),
+                     np.ceil(sz / 2.)).astype(np.complex64)
     sig = np.zeros(sz).astype(np.complex64)
     fourier_pts = fourier_pts.astype(np.complex64)
     sig_f = sig_f.astype(np.complex64)
@@ -68,6 +68,7 @@ def nudft2(im, fourier_pts):
                                  grid)
 
     pts = np.array([grid_x.flatten(), grid_y.flatten()]).astype(np.complex64)
+
 
     for i in range(fourier_pts.shape[0]):
         im_f[i] = np.dot(np.e ** (0 - 1j * np.dot(fourier_pts[i, :], pts)),

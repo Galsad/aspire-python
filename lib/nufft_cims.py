@@ -5,6 +5,7 @@ from extern import nufft2df90
 from extern import nufft3df90
 
 from lib import nudft
+import nudft_gpu
 
 
 class py_nufft():
@@ -15,6 +16,7 @@ class py_nufft():
     def factory(type):
         if type == "nufft": return regular_nufft()
         if type == "dft": return dft()
+        if type == "gpu_dft": return nudft_gpu.nudft_gpu()
 
 
 class regular_nufft(py_nufft):
@@ -152,7 +154,7 @@ class regular_nufft(py_nufft):
 
 class dft(py_nufft):
     @staticmethod
-    def adjoint1d(fourier_pts, sig_f):
+    def adjoint1d(fourier_pts, sig_f, eps=None):
         """
         :param fourier_pts: the frequencies in Fourier space at which the
         adjoint Fourier transform is to be
@@ -173,7 +175,7 @@ class dft(py_nufft):
         return sig, 0
 
     @staticmethod
-    def forward1d(fourier_pts, sig):
+    def forward1d(fourier_pts, sig, eps=None):
         """
         :param fourier_pts: The frequencies in Fourier space at which the
         Fourier transform is to be calculated.
@@ -190,7 +192,7 @@ class dft(py_nufft):
         return sig_f, 0
 
     @staticmethod
-    def adjoint2d(fourier_pts, im_f):
+    def adjoint2d(fourier_pts, im_f, eps=None):
         """
         :param fourier_pts: The frequencies in Fourier space at which the
         adjoint Fourier transform is to be calculated.
@@ -211,7 +213,7 @@ class dft(py_nufft):
         return sig, 0
 
     @staticmethod
-    def forward2d(fourier_pts, im):
+    def forward2d(fourier_pts, im, eps=None):
         """
         :param fourier_pts: The frequencies in Fourier space at which the
         Fourier transform is to be calculated.
@@ -229,7 +231,7 @@ class dft(py_nufft):
         return im_f, 0
 
     @staticmethod
-    def adjoint3d(fourier_pts, vol_f):
+    def adjoint3d(fourier_pts, vol_f, eps=None):
         """
         :param fourier_pts: The frequencies in Fourier space at which the
         adjoint Fourier transform is to be calculated.
@@ -250,7 +252,7 @@ class dft(py_nufft):
         return sig, 0
 
     @staticmethod
-    def forward3d(fourier_pts, vol):
+    def forward3d(fourier_pts, vol, eps=None):
         """
         :param fourier_pts: The frequencies in Fourier space at which the
         Fourier transform is to be calculated.

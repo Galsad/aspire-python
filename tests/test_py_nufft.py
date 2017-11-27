@@ -3,8 +3,8 @@ import logging
 import sys
 import unittest
 
-from lib import nudft
 import numpy as np
+from lib import nudft
 from lib.nufft_cims import py_nufft
 
 logger = logging.getLogger()
@@ -128,6 +128,65 @@ class nufft_unitest(unittest.TestCase):
 
         self.assertTrue(np.sum(
             np.square(np.abs(python_results - fortran_results))) / n < diff)
+
+    def test_nudft_gpu_forward_1d(self, n=2049, diff=1e-8):
+        """
+        :param n: the size of the fft
+        comapres the python nudft3_d results to the fortran run
+        generate fourier points in a constant way
+        :return:
+        """
+        sig = np.random.uniform(-np.pi, np.pi, n)
+        fourier_pts = np.random.uniform(-np.pi, np.pi, n)
+
+        py_nufft_obj = py_nufft.factory("gpu_dft")
+
+        res = py_nufft_obj.forward1d(sig, fourier_pts)
+
+        self.assertTrue(np.abs(np.sum(
+            np.square(nudft.nudft1(sig, fourier_pts) - res))) / n < diff)
+
+    def test_nudft_gpu_adjoint_1d(self, n=2049, diff=1e-8):
+        """
+        :param n: the size of the fft
+        comapres the python nudft3_d results to the fortran run
+        generate fourier points in a constant way
+        :return:
+        """
+        sig_f = np.random.uniform(-np.pi, np.pi, n)
+        fourier_pts = np.random.uniform(-np.pi, np.pi, n)
+
+        py_nufft_obj = py_nufft.factory("gpu_dft")
+
+        res = py_nufft_obj.adjoint1d(sig_f, fourier_pts)
+
+        self.assertTrue(np.abs(np.sum(
+            np.square(nudft.anudft1(sig_f, fourier_pts, n) - res))) / n < diff)
+
+    def test_nudft_gpu_forward_2d(self, n=65, diff=1e-8):
+        """
+        :param n: the size of the fft
+        comapres the python nudft3_d results to the fortran run
+        generate fourier points in a constant way
+        :return:
+        """
+
+        fourier_pts_x = np.random.uniform(-np.pi, np.pi, n)
+        fourier_pts_y = np.random.uniform(-np.pi, np.pi, n)
+
+        fourier_pts = np.array(zip(fourier_pts_x, fourier_pts_y))
+        im = np.random.uniform(-1, 1, n * n).reshape(n, n)
+
+        python_results = nudft.nudft2(im, fourier_pts)
+
+        py_nufft_obj = py_nufft.factory("gpu_dft")
+
+        res = py_nufft_obj.forward2d(im, fourier_pts)
+
+        diff = 1e-08
+        print nudft.nudft2(im, fourier_pts)
+        print res
+        print np.abs(np.sum(np.square(python_results - res))) / n
 
 
 if __name__ == '__main__':
