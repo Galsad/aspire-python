@@ -20,7 +20,7 @@ class benchmark_nufft(benchmark.Benchmark):
             self.size_1d)
 
         py_nufft_obj = py_nufft.factory(self.type)
-        py_nufft_obj.forward1d(fourier_pts, sig, eps=self.eps)[0]
+        py_nufft_obj.forward1d(sig, fourier_pts, eps=self.eps)[0]
 
     def test_nufft1d_adjoint(self):
         fourier_pts = np.random.uniform(-np.pi, np.pi, self.size_1d)
@@ -28,7 +28,7 @@ class benchmark_nufft(benchmark.Benchmark):
             self.size_1d)
 
         py_nufft_obj = py_nufft.factory(self.type)
-        py_nufft_obj.adjoint1d(fourier_pts, sig_f, eps=self.eps)[0]
+        py_nufft_obj.adjoint1d(sig_f, fourier_pts, eps=self.eps)[0]
 
     def test_nufft2d_forward(self):
         fourier_pts_x = np.random.uniform(-np.pi, np.pi, self.size_2d)
@@ -38,7 +38,7 @@ class benchmark_nufft(benchmark.Benchmark):
             self.size_2d, self.size_2d)
 
         py_nufft_obj = py_nufft.factory(self.type)
-        py_nufft_obj.forward2d(fourier_pts, im, eps=self.eps)[0]
+        py_nufft_obj.forward2d(im, fourier_pts, eps=self.eps)[0]
 
     def test_nufft2d_adjoint(self):
         fourier_pts_x = np.random.uniform(-np.pi, np.pi, self.size_2d)
@@ -48,7 +48,7 @@ class benchmark_nufft(benchmark.Benchmark):
             self.size_2d)
 
         py_nufft_obj = py_nufft.factory(self.type)
-        py_nufft_obj.adjoint2d(fourier_pts, im_f, eps=self.eps)[0]
+        py_nufft_obj.adjoint2d(im_f, fourier_pts, eps=self.eps)[0]
 
     def test_nufft3d_forward(self):
         fourier_pts_x = np.random.uniform(-np.pi, np.pi, self.size_3d)
@@ -61,7 +61,7 @@ class benchmark_nufft(benchmark.Benchmark):
             self.size_3d, self.size_3d, self.size_3d)
 
         py_nufft_obj = py_nufft.factory(self.type)
-        py_nufft_obj.forward3d(fourier_pts, vol, eps=self.eps)[0]
+        py_nufft_obj.forward3d(vol, fourier_pts, eps=self.eps)[0]
 
     def test_nufft3d_adjoint(self):
         fourier_pts_x = np.random.uniform(-np.pi, np.pi, self.size_3d)
@@ -73,7 +73,7 @@ class benchmark_nufft(benchmark.Benchmark):
             self.size_3d)
 
         py_nufft_obj = py_nufft.factory(self.type)
-        py_nufft_obj.adjoint3d(fourier_pts, vol_f, eps=self.eps)[0]
+        py_nufft_obj.adjoint3d(vol_f, fourier_pts, eps=self.eps)[0]
 
     # def test_gpu_nudft1d_forward(self):
     #     fourier_pts = np.random.uniform(-np.pi, np.pi, self.size_1d)
@@ -85,7 +85,7 @@ class benchmark_nufft(benchmark.Benchmark):
 
 
 
-class benchmark_nufft_double_precision(benchmark_nufft):
+class benchmark_nufft_100_double_precision(benchmark_nufft):
     each = 10
 
     def setUp(self):
@@ -96,7 +96,7 @@ class benchmark_nufft_double_precision(benchmark_nufft):
         self.type = 'nufft'
 
 
-class benchmark_nufft_large_scale_single_precision(benchmark_nufft):
+class benchmark_nufft_256_single_precision(benchmark_nufft):
     each = 10
 
     def setUp(self):
@@ -107,7 +107,7 @@ class benchmark_nufft_large_scale_single_precision(benchmark_nufft):
         self.type = 'nufft'
 
 
-class benchmark_nufft_dft(benchmark_nufft):
+class benchmark_dft_100(benchmark_nufft):
     each = 10
 
     def setUp(self):
@@ -118,7 +118,7 @@ class benchmark_nufft_dft(benchmark_nufft):
         self.type = 'dft'
 
 
-class benchmark_gpu_dft(benchmark_nufft):
+class benchmark_gpu_dft_100(benchmark_nufft):
     each = 10
 
     def setUp(self):

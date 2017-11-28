@@ -95,8 +95,7 @@ def anudft2(im_f, fourier_pts, sz):
     im = np.zeros(N * N).astype(np.complex64)
     grid = np.arange(np.ceil(-N / 2.), np.ceil(N / 2.)).astype(np.complex64)
     # grid_y and grid_x are like matlab convensions
-    grid_x, grid_y = np.meshgrid(grid,
-                                 grid)
+    grid_x, grid_y = np.meshgrid(grid, grid)
 
     pts = np.array([grid_x.flatten(), grid_y.flatten()]).astype(np.complex64)
 

@@ -21,7 +21,7 @@ class py_nufft():
 
 class regular_nufft(py_nufft):
     @staticmethod
-    def adjoint1d(fourier_pts, sig_f, iflag=1, eps=1.0e-8):
+    def adjoint1d(sig_f,fourier_pts, iflag=1, eps=1.0e-8):
         """
         :param fourier_pts: the frequencies in Fourier space at which the
         adjoint Fourier transform is to be
@@ -43,7 +43,7 @@ class regular_nufft(py_nufft):
         return sig, err
 
     @staticmethod
-    def forward1d(fourier_pts, sig, iflag=-1, eps=1.0e-8):
+    def forward1d(sig, fourier_pts, iflag=-1, eps=1.0e-8):
         """
         :param fourier_pts: The frequencies in Fourier space at which the
         Fourier transform is to be calculated.
@@ -60,7 +60,7 @@ class regular_nufft(py_nufft):
         return sig_f, err
 
     @staticmethod
-    def adjoint2d(fourier_pts, im_f, iflag=1, eps=1.0e-8):
+    def adjoint2d(im_f, fourier_pts, iflag=1, eps=1.0e-8):
         """
         :param fourier_pts: The frequencies in Fourier space at which the
         adjoint Fourier transform is to be calculated.
@@ -84,7 +84,7 @@ class regular_nufft(py_nufft):
         return im, err
 
     @staticmethod
-    def forward2d(fourier_pts, im, iflag=-1, eps=1.0e-8):
+    def forward2d(im, fourier_pts, iflag=-1, eps=1.0e-8):
         """
         :param fourier_pts: The frequencies in Fourier space at which the
         Fourier transform is to be calculated.
@@ -104,7 +104,7 @@ class regular_nufft(py_nufft):
         return im_f, err
 
     @staticmethod
-    def adjoint3d(fourier_pts, vol_f, iflag=1, eps=1.0e-8):
+    def adjoint3d(vol_f, fourier_pts, iflag=1, eps=1.0e-8):
         """
         :param fourier_pts: The frequencies in Fourier space at which the
         adjoint Fourier transform is to be calculated.
@@ -131,7 +131,7 @@ class regular_nufft(py_nufft):
         return vol, err
 
     @staticmethod
-    def forward3d(fourier_pts, vol, iflag=-1, eps=1.0e-8):
+    def forward3d(vol, fourier_pts, iflag=-1, eps=1.0e-8):
         """
         :param fourier_pts: The frequencies in Fourier space at which the
         Fourier transform is to be calculated.
@@ -154,7 +154,7 @@ class regular_nufft(py_nufft):
 
 class dft(py_nufft):
     @staticmethod
-    def adjoint1d(fourier_pts, sig_f, eps=None):
+    def adjoint1d(sig_f, fourier_pts, eps=None):
         """
         :param fourier_pts: the frequencies in Fourier space at which the
         adjoint Fourier transform is to be
@@ -175,7 +175,7 @@ class dft(py_nufft):
         return sig, 0
 
     @staticmethod
-    def forward1d(fourier_pts, sig, eps=None):
+    def forward1d(sig, fourier_pts, eps=None):
         """
         :param fourier_pts: The frequencies in Fourier space at which the
         Fourier transform is to be calculated.
@@ -192,7 +192,7 @@ class dft(py_nufft):
         return sig_f, 0
 
     @staticmethod
-    def adjoint2d(fourier_pts, im_f, eps=None):
+    def adjoint2d(im_f, fourier_pts, eps=None):
         """
         :param fourier_pts: The frequencies in Fourier space at which the
         adjoint Fourier transform is to be calculated.
@@ -213,7 +213,7 @@ class dft(py_nufft):
         return sig, 0
 
     @staticmethod
-    def forward2d(fourier_pts, im, eps=None):
+    def forward2d(im, fourier_pts, eps=None):
         """
         :param fourier_pts: The frequencies in Fourier space at which the
         Fourier transform is to be calculated.
@@ -231,7 +231,7 @@ class dft(py_nufft):
         return im_f, 0
 
     @staticmethod
-    def adjoint3d(fourier_pts, vol_f, eps=None):
+    def adjoint3d(vol_f, fourier_pts, eps=None):
         """
         :param fourier_pts: The frequencies in Fourier space at which the
         adjoint Fourier transform is to be calculated.
@@ -252,7 +252,7 @@ class dft(py_nufft):
         return sig, 0
 
     @staticmethod
-    def forward3d(fourier_pts, vol, eps=None):
+    def forward3d(vol, fourier_pts, eps=None):
         """
         :param fourier_pts: The frequencies in Fourier space at which the
         Fourier transform is to be calculated.
