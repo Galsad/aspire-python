@@ -113,7 +113,7 @@ class nudft_gpu():
         # grid = np.arange(np.ceil(-len(sig) / 2.), np.ceil(len(sig) / 2.)).astype(
         #     np.complex64)
 
-        sz = np.uint32(im.shape[0])
+        sz = np.uint32(fourier_pts.shape[1])
 
         res = np.zeros_like(im[0]).astype(np.complex64)
         #grid = np.zeros_like(im).astype(np.complex64)
@@ -122,12 +122,11 @@ class nudft_gpu():
         # grid_y and grid_x are like matlab conventions
         grid_x, grid_y = np.meshgrid(grid, grid)
 
-        grid_x = grid_x.flatten().astype(np.complex64)
-        grid_y = grid_y.flatten().astype(np.complex64)
+        grid_x = grid_x.flatten(order='F').astype(np.complex64)
+        grid_y = grid_y.flatten(order='F').astype(np.complex64)
 
-        fourier_pts_x = fourier_pts[:, 0].astype(np.complex64)
-        fourier_pts_y = fourier_pts[:, 1].astype(np.complex64)
-
+        fourier_pts_x = fourier_pts[0].astype(np.complex64)
+        fourier_pts_y = fourier_pts[1].astype(np.complex64)
 
         # grid_x = np.zeros(sz * sz).astype(np.complex64)
         # grid_y = np.zeros(sz * sz).astype(np.complex64)
@@ -174,7 +173,7 @@ class nudft_gpu():
         gridm = (sz / bdim[0] + (sz % bdim[0] > 0), 1)
 
         func = mod.get_function("dft2")
-        func(cuda.In(im.flatten()), cuda.In(fourier_pts_x),
+        func(cuda.In(im.flatten(order='F')), cuda.In(fourier_pts_x),
              cuda.In(fourier_pts_y), cuda.In(grid_x), cuda.In(grid_y), sz,
              cuda.Out(res),
              block=bdim, grid=gridm)
@@ -247,7 +246,7 @@ class nudft_gpu():
         vol = vol.astype(np.complex64)
         fourier_pts = fourier_pts.astype(np.complex64)
 
-        sz = np.uint32(vol.shape[0])
+        sz = np.uint32(fourier_pts.shape[1])
 
         res = np.zeros_like(vol[0][0]).astype(np.complex64)
 
@@ -255,13 +254,13 @@ class nudft_gpu():
         # grid_y and grid_x are like matlab conventions
         grid_x, grid_y, grid_z = np.meshgrid(grid, grid, grid)
 
-        grid_x = grid_x.flatten().astype(np.complex64)
-        grid_y = grid_y.flatten().astype(np.complex64)
-        grid_z = grid_z.flatten().astype(np.complex64)
+        grid_x = grid_x.flatten(order='F').astype(np.complex64)
+        grid_y = grid_y.flatten(order='F').astype(np.complex64)
+        grid_z = grid_z.flatten(order='F').astype(np.complex64)
 
-        fourier_pts_x = fourier_pts[:, 0].astype(np.complex64)
-        fourier_pts_y = fourier_pts[:, 1].astype(np.complex64)
-        fourier_pts_z = fourier_pts[:, 2].astype(np.complex64)
+        fourier_pts_x = fourier_pts[0].astype(np.complex64)
+        fourier_pts_y = fourier_pts[1].astype(np.complex64)
+        fourier_pts_z = fourier_pts[2].astype(np.complex64)
 
         # the kernel
         mod = SourceModule("""
@@ -294,8 +293,8 @@ class nudft_gpu():
         gridm = (sz / bdim[0] + (sz % bdim[0] > 0), 1)
 
         func = mod.get_function("dft3")
-        func(cuda.In(vol.flatten()), cuda.In(fourier_pts_x),
-             cuda.In(fourier_pts_y), cuda.In(fourier_pts_z), cuda.In(grid_x),
+        func(cuda.In(vol.flatten(order='F')), cuda.In(fourier_pts_y),
+             cuda.In(fourier_pts_x), cuda.In(fourier_pts_z), cuda.In(grid_x),
              cuda.In(grid_y), cuda.In(grid_z), sz, cuda.Out(res),
              block=bdim, grid=gridm)
         return res, 0

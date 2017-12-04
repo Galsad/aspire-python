@@ -98,8 +98,8 @@ class regular_nufft(py_nufft):
         :return: The Fourier transform of im calculated at the specified
         frequencies
         """
-        im_f, err = nufft2df90.nufft2d2f90(fourier_pts[:, 1],
-                                           fourier_pts[:, 0], iflag,
+        im_f, err = nufft2df90.nufft2d2f90(fourier_pts[1],
+                                           fourier_pts[0], iflag,
                                            eps, im)
         return im_f, err
 
@@ -145,9 +145,9 @@ class regular_nufft(py_nufft):
         :return:  The Fourier transform of vol calculated at the specified
         frequencies
         """
-        vol_f, err = nufft3df90.nufft3d2f90(fourier_pts[:, 1],
-                                            fourier_pts[:, 0],
-                                            fourier_pts[:, 2],
+        vol_f, err = nufft3df90.nufft3d2f90(fourier_pts[1],
+                                            fourier_pts[0],
+                                            fourier_pts[2],
                                             iflag, eps, vol)
         return vol_f, err
 

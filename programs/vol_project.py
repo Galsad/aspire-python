@@ -97,10 +97,12 @@ def cryo_project(vol, rot_matrices, output_file=None, fft_type=None):
     n = rot_matrices.shape[0]
 
     pts_rot = rotated_grids(L, rot_matrices)
-    pts_rot = np.transpose(pts_rot.reshape([3, L ** 2 * n], order='F'))
+    # pts_rot = np.transpose(pts_rot.reshape([3, L ** 2 * n], order='F'))
+    pts_rot = pts_rot.reshape([3, L ** 2 * n], order='F')
+
 
     # this permutation is required for Matlab conventions!
-    pts_rot = pts_rot[:, np.argsort([1, 0, 2])]
+    pts_rot[[0, 1]] = pts_rot[[1, 0]]
 
     im_f = nufft_obj.forward3d(fourier_pts=pts_rot, vol=vol)[0]
     im_f = im_f.reshape([L, L, n], order='F')

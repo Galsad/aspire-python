@@ -61,18 +61,19 @@ def nudft2(im, fourier_pts):
     im = im.astype(np.complex64)
     N = im.shape[0]
 
-    im_f = np.zeros(N).astype(np.complex64)
+    im_f = np.zeros(fourier_pts.shape[1]).astype(np.complex64)
     grid = np.arange(np.ceil(-N / 2.), np.ceil(N / 2.)).astype(np.complex64)
     # grid_y and grid_x are like matlab conventions
     grid_x, grid_y = np.meshgrid(grid,
                                  grid)
 
-    pts = np.array([grid_x.flatten(), grid_y.flatten()]).astype(np.complex64)
+    #pts = np.array([grid_x.flatten(), grid_y.flatten()]).astype(np.complex64)
 
+    pts = np.array([grid_y.flatten(), grid_x.flatten()]).astype(np.complex64)
 
-    for i in range(fourier_pts.shape[0]):
-        im_f[i] = np.dot(np.e ** (0 - 1j * np.dot(fourier_pts[i, :], pts)),
-                         im.flatten())
+    for i in range(fourier_pts.shape[1]):
+        im_f[i] = np.dot(np.e ** (0 - 1j * np.dot(fourier_pts[:, i], pts)),
+                         im.flatten(order='F'))
 
     return im_f
 
@@ -121,19 +122,24 @@ def nudft3(vol, fourier_pts):
     vol = vol.astype(np.complex64)
     N = vol.shape[0]
 
-    vol_f = np.zeros(N).astype(np.complex64)
+    vol_f = np.zeros(fourier_pts.shape[1]).astype(np.complex64)
     grid = np.arange(np.ceil(-N / 2.), np.ceil(N / 2.)).astype(np.complex64)
     # grid_y and grid_x are like matlab convensions
     grid_x, grid_y, grid_z = np.meshgrid(grid, grid,
                                          grid)
 
     pts = np.array(
-        [grid_x.flatten(), grid_y.flatten(), grid_z.flatten()]).astype(
-        np.complex64)
+        [grid_y.flatten(), grid_x.flatten(),
+         grid_z.flatten(order='F')]).astype(np.complex64)
 
-    for i in range(fourier_pts.shape[0]):
-        vol_f[i] = np.dot(np.e ** (0 - 1j * np.dot(fourier_pts[i, :], pts)),
-                          vol.flatten())
+    # pts = np.array(
+    #     [grid_y.flatten(order='F'), grid_x.flatten(order='F'),
+    #     grid_z.flatten(order='F')]).astype(np.complex64)
+
+
+    for i in range(fourier_pts.shape[1]):
+        vol_f[i] = np.dot(np.e ** (0 - 1j * np.dot(fourier_pts[:, i], pts)),
+                          vol.flatten(order='F'))
 
     return vol_f
 
@@ -168,3 +174,10 @@ def anudft3(vol_f, fourier_pts, sz):
                         vol_f.flatten())
 
     return vol.reshape((N, N, N))
+
+if __name__ == "__main__":
+    vol = np.arange(1, 65).reshape([8, 8], order='F')
+    print vol.shape[0]
+    fourier_pts = np.arange(1, 31).reshape([2, 15], order='F')
+    print fourier_pts.shape
+    print "IMF: " + str(nudft2(vol, fourier_pts))

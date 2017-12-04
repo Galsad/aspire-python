@@ -3,6 +3,8 @@ import logging
 import sys
 import unittest
 
+sys.path.append(r'/home/gals/Code/playground/py-nufft/')
+
 import numpy as np
 from lib import nudft
 from lib.nufft_cims import py_nufft
@@ -58,10 +60,12 @@ class nufft_unitest(unittest.TestCase):
         '''
         fourier_pts_x = np.random.uniform(-np.pi, np.pi, n)
         fourier_pts_y = np.random.uniform(-np.pi, np.pi, n)
-        fourier_pts = np.array(zip(fourier_pts_x, fourier_pts_y))
+
+        fourier_pts = np.array(zip(fourier_pts_x, fourier_pts_y)).reshape([2, n], order='F')
         im = np.random.uniform(-1, 1, n * n).reshape(n, n)
         py_nufft_obj = py_nufft.factory('nufft')
         fortran_results = py_nufft_obj.forward2d(im, fourier_pts)[0]
+
         python_results = nudft.nudft2(im, fourier_pts)
 
         self.assertTrue(
@@ -97,7 +101,7 @@ class nufft_unitest(unittest.TestCase):
         fourier_pts_y = np.random.uniform(-np.pi, np.pi, n)
         fourier_pts_z = np.random.uniform(-np.pi, np.pi, n)
         fourier_pts = np.array(
-            zip(fourier_pts_x, fourier_pts_y, fourier_pts_z))
+            zip(fourier_pts_x, fourier_pts_y, fourier_pts_z)).reshape([3, n], order='F')
         vol = np.random.uniform(-1, 1, n * n * n).reshape(n, n, n)
 
         py_nufft_obj = py_nufft.factory('nufft')
@@ -174,7 +178,7 @@ class nufft_unitest(unittest.TestCase):
         fourier_pts_x = np.random.uniform(-np.pi, np.pi, n)
         fourier_pts_y = np.random.uniform(-np.pi, np.pi, n)
 
-        fourier_pts = np.array(zip(fourier_pts_x, fourier_pts_y))
+        fourier_pts = np.array(zip(fourier_pts_x, fourier_pts_y)).reshape([2, n], order='F')
         im = np.random.uniform(-1, 1, n * n).reshape(n, n)
 
         python_results = nudft.nudft2(im, fourier_pts)
@@ -182,8 +186,6 @@ class nufft_unitest(unittest.TestCase):
         py_nufft_obj = py_nufft.factory("gpu_dft")
 
         res = py_nufft_obj.forward2d(im, fourier_pts)[0]
-        print res
-        print python_results
 
         self.assertTrue(np.abs(np.sum(np.square(python_results - res))) / n < diff)
 
@@ -217,13 +219,19 @@ class nufft_unitest(unittest.TestCase):
         fourier_pts_z = np.random.uniform(-np.pi, np.pi, n)
 
         fourier_pts = np.array(
-            zip(fourier_pts_x, fourier_pts_y, fourier_pts_z))
+            zip(fourier_pts_x, fourier_pts_y, fourier_pts_z)).reshape([3, n], order='F')
         vol = np.random.uniform(-np.pi, np.pi, n * n * n).reshape([n, n, n])
 
         python_results = nudft.nudft3(vol, fourier_pts)
 
         py_nufft_obj = py_nufft.factory("gpu_dft")
         res = py_nufft_obj.forward3d(vol, fourier_pts)[0]
+
+        print "+++++++++"
+        print res
+        print "+++++++++"
+        print python_results
+        print "+++++++++"
 
         self.assertTrue(
             np.abs(np.sum(np.square(python_results - res))) / n < diff)
