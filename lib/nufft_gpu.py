@@ -6,119 +6,115 @@ import numpy as np
 import pycuda.gpuarray as gpuarray
 from lib import nudft
 import nufft_cims
-from pycuda.elementwise import ElementwiseKernel
+
+import nufft_ref
+
+import pyfft
 
 
-def calculate_kernel(omega, b, m, q):
-    n = len(alpha)
-    mu = np.round(omega * m)
-    P = np.zeros([n, q + 1]).astype(np.complex64)
 
-    # creating kernel function
-    for i in range(-q / 2, q / 2 + 1):
-        P[:, i + q / 2] = (np.exp(
-            -(m * omega - (mu + i)) ** 2 / (4 * b))) / (
-                              2 * np.sqrt(b * np.pi))
-
-    return P
+BLOCK_SIZE = 1024
 
 class nufft_gpu():
 
-
-    # TODO - fix problem with dimension of kernel function
     @staticmethod
-    def forward1d(fourier_pts, sig, eps=None):
+    def forward1d(alpha, omega, eps=None):
+        '''
+        running 1dfft on GPU:
+        calculating the sum:
 
-        # preparing kernel #
+                n
+        f(j) = sum alpha(k)*exp(2*pi*i*j*omega(k)/M)
+               k=1
+
+        :param alpha: Coefficients in the sums above. Real or complex numbers.
+        :param omega: Sampling frequnecies. Real numbers in the range [-n/2,n/2]
+        :param eps:
+        :return: the sum defined above
+        '''
+
+        # kernel parameters (single precision)#
         b = 0.5993
         m = 2
-        q = 10
 
-        sig = sig.astype(np.complex64)
+        omega = omega.astype(np.float32)
+        n = len(alpha)
 
-        # kernel is of size q * (q+1)
-        ker = calculate_kernel(sig, b, m, q)
-
-        n = len(fourier_pts)
-
-        # TODO - verify it
         M = n
-        mu = np.ascontiguousarray(np.round(sig * m).astype(np.int32))
-        tau_im = np.ascontiguousarray(np.zeros(M * m).astype(np.float32))
-        tau_re = np.ascontiguousarray(np.zeros(M * m).astype(np.float32))
-        # print tau
+        mu = np.ascontiguousarray(np.round(omega * m).astype(np.int32))
         offset = np.ceil((m * M - 1) / 2.)
-        # ker = ker.astype(np.complex64)
 
-        # converting all variables to complex one
-        fourier_pts = np.ascontiguousarray(fourier_pts.astype(np.complex64))
+        tau_im = pycuda.gpuarray.zeros(M * m, dtype=np.float32)
+        tau_re = pycuda.gpuarray.zeros(M * m, dtype=np.float32)
+
+        alpha = np.ascontiguousarray(alpha.astype(np.complex64))
 
         # the GPU kernel
         mod = SourceModule("""
         #include <pycuda-complex.hpp>
         #include <stdio.h>
-        __global__ void nufft1(float *fourier_pts_re, float *fourier_pts_im, float *ker_re, float *ker_im, int *mu, int offset, int q, int M, int m, float *tau_re, float *tau_im)
-        {
-            int idx = (threadIdx.x + blockDim.x * blockIdx.x) + 
-            (threadIdx.y + blockDim.y * blockIdx.y) + 
-            (threadIdx.z + blockDim.z * blockIdx.z);
+        __global__ void nufft1(pycuda::complex<float> *alpha, float *omega, int precision ,int *mu, int offset, int M, float* tau_re, float* tau_im)
+        { 
+            int k = (threadIdx.x + blockDim.x * blockIdx.x); 
             
-            idx = (threadIdx.x + blockDim.x * blockIdx.x) + (threadIdx.y + blockDim.y * blockIdx.y)*gridDim.x; 
+            if (k >= M){
+                return ;
+            }
             
-            int i = -q / 2;
-            int inner_idx = 0;
+            // kernel variables
+            int q = 0;
+            int m = 0;
+            float b = 0;
             
-            float tmp_re = 0;
-            float tmp_im = 0;
+            // single precision
+            if (precision == 0){
+                b = 0.5993;
+                m=2;
+                q=10;
+            }
             
+            if (precision == 1){
+                b = 1.5629;
+                m=2;
+                q=28;
+            }
+  
+            int j = -q / 2;
+            int idx = 0;
             
-            for (i = -q/2; i < q/2 + 1 ;i++){
-                inner_idx = mu[idx] + i;
-                inner_idx = (inner_idx + offset + (m * M)) % (M * m);
+            // consts
+            const float pi = 3.141592653589793;
+            const pycuda::complex<float> comp_m(m, 0);
+            const pycuda::complex<float> denominator((2 * powf(b * pi, 0.5)), 0);
+            
+            // inner loop variables
+            pycuda::complex<float> tmp(0, 0);
+            pycuda::complex<float> add;
+            pycuda::complex<float> numerator;
+            
+            for (j = -q/2; j < q/2 + 1;j++){
+                idx = mu[k] + j;
+                idx = (idx + offset + (m * M)) % (M * m);
                 
-                tmp_re = (ker_re[(idx*(q + 1)) + (i + q/2)] * fourier_pts_re[idx]) - (ker_im[(idx*(q + 1)) + (i + q/2)] * fourier_pts_im[idx]);
-                tmp_im = (ker_re[(idx*(q + 1)) + (i + q/2)] * fourier_pts_im[idx]) + (ker_im[(idx*(q + 1)) + (i + q/2)] * fourier_pts_re[idx]);
+                tmp.real(j + mu[k]);
+                numerator = ((comp_m * omega[k] - tmp) * (comp_m * omega[k] - tmp) / (4*b));
+                add = (exp(-numerator) / denominator) * alpha[k];
                 
-                atomicAdd(&tau_im[inner_idx], tmp_im);
-                atomicAdd(&tau_re[inner_idx], tmp_re);
-                
+                atomicAdd(&tau_im[idx], imag(add));
+                atomicAdd(&tau_re[idx], real(add));                
             }
         }
         """)
 
-        bdim = (n, 1, 1)
-
-        gridm = (n / bdim[0] + (n % bdim[0] > 0), 1)
-
-        #print gridm
-        #gridm = (1, 1)
+        bdim = (BLOCK_SIZE, 1, 1)
+        gridm = (n / bdim[0] + (n % bdim[0] > 0), 1, 1)
 
         func = mod.get_function("nufft1")
 
-        #print ker
-
-        ker = ker.flatten()
-
-        ker_re = np.ascontiguousarray(ker.real).astype(np.float32)
-        ker_im = np.ascontiguousarray(ker.imag).astype(np.float32)
-
-
-        fourier_pts_re = np.ascontiguousarray(fourier_pts.real).astype(np.float32)
-        fourier_pts_im = np.ascontiguousarray(fourier_pts.imag).astype(np.float32)
-
-        #print "ker is:"
-        #print ker_re
-        #print fourier_pts_re[:50]
-
-        func(cuda.In(fourier_pts_re), cuda.In(fourier_pts_im), cuda.In(ker_re), cuda.In(ker_im), cuda.In(mu), np.int32(offset), np.int32(q), np.int32(M), np.int32(m),
-             cuda.Out(tau_re), cuda.Out(tau_im),
+        func(cuda.In(alpha), cuda.In(omega), np.int32(0), cuda.In(mu), np.int32(offset), np.int32(M), tau_re, tau_im,
              block=bdim, grid=gridm)
 
-        print tau_re
-
-
-        tau = tau_re + 1j * tau_im
-
+        tau = tau_re.get() + 1j * tau_im.get()
         T = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(tau)))
         T = T * len(T)
 
@@ -130,71 +126,175 @@ class nufft_gpu():
         offset2 = offset + low_idx_M
         f = T[int(offset2):int(offset2 + M)] * E
 
-        return f
-
-
-        # return zip(tau_re, tau_im)
-        #return res, 0
+        return f, 0
 
     @staticmethod
-    def kernel_nufft(alpha, omega, M, precision='single'):
-        if precision == 'single':
-            b = 0.5993
-            m=2
-            q=10
+    def forward2d(alpha, omega, eps=None):
+        b = 0.5993
+        m = 2
 
-        elif precision == 'double':
-            b = 1.5629
-            m=2
-            q=28
-
-        else:
-            raise "precision is not legall!"
+        omega = omega.astype(np.float32)
         n = len(alpha)
-        mu = np.round(omega * m)
 
+        M = n
+        mu = np.round(omega * m).astype(np.int32)
 
-        P = calculate_kernel(omega, b, m, q)
+        print mu
 
-        tau = np.zeros(m*M).astype(np.complex64)
-        offset1 = np.ceil((m*M-1)/2.)
+        mu_x = np.ascontiguousarray(mu[ :,0])
+        mu_y = np.ascontiguousarray(mu[ :,1])
 
-        # calculating tau
-        for k in range(n):
-            for j in range(-q/2, q/2 + 1):
-                idx = mu[k] + j
-                idx = ((idx + offset1) % (M*m))
-                # print idx
-                tau[int(idx)] = tau[int(idx)] + P[k, j+q/2] * alpha[k]
+        offset = np.ceil((m * M - 1) / 2.)
 
-        print "***"
-        print tau
-        print "***"
+        tau_im = pycuda.gpuarray.zeros([M * m, M * m], dtype=np.float32)
+        tau_re = pycuda.gpuarray.zeros([M * m, M * m], dtype=np.float32)
 
-        T = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(tau)))
-        T = T * len(T)
+        alpha = np.ascontiguousarray(alpha.astype(np.complex64))
 
-        low_idx_M = int(-np.ceil((M-1)/2.))
-        high_idx_M = int(np.floor((M-1)/2.)) + 1
+        # the GPU kernel
+        mod = SourceModule("""
+                #include <pycuda-complex.hpp>
+                #include <stdio.h>
+                __global__ void nufft2(int M, int offset, pycuda::complex<float> *alpha, float *omega_x, float *omega_y, int precision , int* mu_x, int* mu_y, float** tau_re, float** tau_im)
+                { 
+                    int k = (threadIdx.x + blockDim.x * blockIdx.x); 
+                    
+                    if (k < 3){
+                        printf("k is %d M is %d offset is %d precision is %d mu_y is %d mu_x is %d\\n", k, M, offset, precision, mu_y[0], mu_x[0]);
+                    }
+                    
+                    if (k >= M){
+                        return ;
+                    }
+                    
+                    printf("CUDA!\\n");
+                    
+                    // kernel variables
+                    int q = 0;
+                    int m = 0;
+                    float b = 0;
+
+                    // single precision
+                    if (precision == 0){
+                        b = 0.5993;
+                        m=2;
+                        q=10;
+                    }
+
+                    if (precision == 1){
+                        b = 1.5629;
+                        m=2;
+                        q=28;
+                    }
+
+                    int j1 = -q / 2;
+                    int j2 = -q / 2;
+                    int idx1 = 0;
+                    int idx2 = 0;
+
+                    // consts
+                    const float pi = 3.141592653589793;
+                    const pycuda::complex<float> comp_m(m, 0);
+                    const pycuda::complex<float> denominator(4 * b * pi, 0);
+
+                    // inner loop variables
+                    pycuda::complex<float> tmp1(0, 0);
+                    pycuda::complex<float> tmp2(0, 0);
+                    
+                    pycuda::complex<float> add;
+                    pycuda::complex<float> numerator;
+                    
+                    printf("q is %d  \\n", q);
+                    
+                    for (j1 = -q/2; j1 < q/2 + 1;j1++){
+                        for (j2 = -q/2; j2 < q/2 + 1; j2++ ){
+                            idx1 = mu_x[k] + j1;
+                            idx2 = mu_y[k] + j2;
+                            
+                            idx1 = (idx1 + offset + (m * M)) % (M * m);
+                            idx2 = (idx2 + offset + (m * M)) % (M * m);
+                            
+                            printf("idx1 is %d idx2 is %d  \\n", idx1, idx2);
+
+                            tmp1.real(j1 + mu_x[k]);
+                            tmp2.real(j2 + mu_y[k]);
+                            
+                            
+                            numerator = ((comp_m * omega_x[k] - tmp1) * (comp_m * omega_x[k] - tmp1) + (comp_m * omega_y[k] - tmp2) * (comp_m * omega_y[k] - tmp2) / (4*b));
+                            add = (exp(-numerator) / denominator) * alpha[k];
+                            
+
+                            atomicAdd(&tau_im[idx1][idx2], imag(add));
+                            atomicAdd(&tau_re[idx1][idx2], real(add));  
+                        }              
+                    }
+                }
+                """)
+
+        bdim = (BLOCK_SIZE, 1, 1)
+        gridm = (n / bdim[0] + (n % bdim[0] > 0), 1, 1)
+
+        func = mod.get_function("nufft2")
+
+        print "I am here!"
+        print M
+        print offset
+
+        func(np.int32(M), np.int32(offset), cuda.In(alpha), cuda.In(omega[:, 0]), cuda.In(omega[:, 1]),
+             np.int32(0), mu_x, mu_y
+             , tau_re, tau_im,
+             block=bdim, grid=gridm)
+
+        tau = tau_re.get() + 1j * tau_im.get()
+
+        T = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(tau)))
+        T = T * len(T) * len(T)
+
+        low_idx_M = -np.ceil((M - 1) / 2.)
+        high_idx_M = np.floor((M - 1) / 2.) + 1
         idx = np.arange(low_idx_M, high_idx_M)
-        E = np.exp(b*(2*np.pi*idx/(m*M))**2)
+        E = np.exp(b * (2. * np.pi * idx / (m * M)) ** 2);
         E = E.flatten(order='F')
-        offset2 = offset1 + low_idx_M
-        f = T[int(offset2):int(offset2 + M)] * E
+        E = np.outer(E, E)
 
+        offset2 = offset + low_idx_M
+
+        f = T[int(offset2):int(offset2) + M,
+            int(offset2): int(offset2) + M] * E
         return f
+
+
+        return 0, 0
+
+    @staticmethod
+    def forward3d(fourier_pts, sig, eps=None):
+        return 0, 0
+
+    @staticmethod
+    def adjoint1d(fourier_pts, sig, eps=None):
+        return 0, 0
+
+    @staticmethod
+    def adjoint2d(fourier_pts, sig, eps=None):
+        return 0, 0
+
+    @staticmethod
+    def adjoint3d(fourier_pts, sig, eps=None):
+        return 0, 0
 
 
 if __name__ == "__main__":
-    n = 10
-    alpha = np.arange(-n/2, n/2) / float(n)
-    omega = np.arange(-n/2, n/2)
+    n = 4
 
-    ret = nufft_gpu.kernel_nufft(alpha.astype(np.complex64), omega, n)
+    alpha = np.arange(-n / 2, n / 2) / float(n)
+    # alpha = np.random.uniform(-np.pi, np.pi, n)
+    omega_x = np.arange(-n / 2, n / 2)
+    omega_y = np.arange(-n / 2, n / 2)
+    omega = np.array([omega_x, omega_y]).transpose()
 
 
-    tau = nufft_gpu.forward1d(alpha, omega)
+    ret = nufft_gpu.forward2d(alpha, omega)
+    ret2 = nufft_ref.kernel_nufft_2d(alpha, omega, n)
 
-    #print tau
-    #print ret
+    print "diff is: " + str(np.abs(np.sum(np.square(ret[0] - ret2))))
 
