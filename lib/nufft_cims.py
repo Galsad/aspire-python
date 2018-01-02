@@ -6,6 +6,7 @@ from extern import nufft3df90
 
 from lib import nudft
 import nudft_gpu
+import nufft_gpu
 
 
 class py_nufft():
@@ -17,6 +18,7 @@ class py_nufft():
         if type == "nufft": return regular_nufft()
         if type == "dft": return dft()
         if type == "gpu_dft": return nudft_gpu.nudft_gpu()
+        if type == "gpu_nufft": return nufft_gpu.nufft_gpu()
 
 
 class regular_nufft(py_nufft):

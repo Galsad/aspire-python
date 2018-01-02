@@ -7,6 +7,7 @@ import pycuda.gpuarray as gpuarray
 from lib import nudft
 import nufft_cims
 
+
 MAX_THREADS_PER_BLOCK = 1024
 MAX_BLOCK_DIM = 1024
 

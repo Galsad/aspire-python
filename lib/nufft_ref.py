@@ -1,6 +1,13 @@
 import numpy as np
 import nufft_cims
+import pycuda.autoinit
+import pycuda.driver as cuda
+from pycuda.compiler import SourceModule
+import pycuda.gpuarray as gpuarray
 
+b = 0.5993
+m = 2
+BLOCK_SIZE = 1024
 
 def calculate_kernel(omega, b, m, q, n):
     mu = np.round(omega * m)
@@ -102,10 +109,20 @@ def kernel_nufft_2d(alpha, omega, M, precision='single'):
 
                 tau[int(idx[0]), int(idx[1])] = tau[int(idx[0]), int(idx[1])] + tmp2
 
+    # T = np.fft.ifftshift(tau)
+    # print "#####"
+    # print T
+    # T = np.fft.ifft2(T)
+    # print "#####"
+    # print T
+    # T = np.fft.fftshift(T)
+    # print "#####"
+    # print T
+
     T = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(tau)))
-
+    # print "&&&&&&"
+    # print T
     T = T * len(T) *len(T)
-
 
     low_idx_M = -np.ceil((M - 1) / 2.)
     high_idx_M = np.floor((M - 1) / 2.) + 1
@@ -117,7 +134,117 @@ def kernel_nufft_2d(alpha, omega, M, precision='single'):
     offset2 = offset1 + low_idx_M
 
     f = T[int(offset2):int(offset2) + M , int(offset2) : int(offset2) + M] * E
-    return f
+    return f, 0
+
+def slow_forward1d(alpha, omega, eps=None):
+    '''
+    running 1dfft on GPU:
+    calculating the sum:
+
+            n
+    f(j) = sum alpha(k)*exp(2*pi*i*j*omega(k)/M)
+           k=1
+
+    :param alpha: Coefficients in the sums above. Real or complex numbers.
+    :param omega: Sampling frequnecies. Real numbers in the range [-n/2,n/2]
+    :param eps:
+    :return: the sum defined above
+    '''
+
+    # kernel parameters (single precision)#
+
+    omega = omega.astype(np.float32)
+    n = len(alpha)
+
+    M = n
+    mu = np.ascontiguousarray(np.round(omega * m).astype(np.int32))
+    offset = np.ceil((m * M - 1) / 2.)
+
+    tau_im = pycuda.gpuarray.zeros(M * m, dtype=np.float32)
+    tau_re = pycuda.gpuarray.zeros(M * m, dtype=np.float32)
+
+    alpha = np.ascontiguousarray(alpha.astype(np.complex64))
+
+    # the GPU kernel
+    mod = SourceModule("""
+    #include <pycuda-complex.hpp>
+    #include <stdio.h>
+    __global__ void nufft1(pycuda::complex<float> *alpha, float *omega, int precision ,int *mu, int offset, int M, float* tau_re, float* tau_im)
+    { 
+        int k = (threadIdx.x + blockDim.x * blockIdx.x); 
+
+        if (k >= M){
+            return ;
+        }
+
+        // kernel variables
+        int q = 0;
+        int m = 0;
+        float b = 0;
+
+        // single precision
+        if (precision == 0){
+            b = 0.5993;
+            m=2;
+            q=10;
+        }
+
+        if (precision == 1){
+            b = 1.5629;
+            m=2;
+            q=28;
+        }
+
+        int j = -q / 2;
+        int idx = 0;
+
+        // consts
+        const float pi = 3.141592653589793;
+        const pycuda::complex<float> comp_m(m, 0);
+        const pycuda::complex<float> denominator((2 * powf(b * pi, 0.5)), 0);
+
+        // inner loop variables
+        pycuda::complex<float> tmp(0, 0);
+        pycuda::complex<float> add;
+        pycuda::complex<float> numerator;
+
+        for (j = -q/2; j < q/2 + 1;j++){
+            idx = mu[k] + j;
+            idx = (idx + offset + (m * M)) % (M * m);
+
+            tmp.real(j + mu[k]);
+            numerator = ((comp_m * omega[k] - tmp) * (comp_m * omega[k] - tmp) / (4*b));
+            add = (exp(-numerator) / denominator) * alpha[k];
+
+            atomicAdd(&tau_im[idx], imag(add));
+            atomicAdd(&tau_re[idx], real(add));                
+        }
+    }
+    """)
+
+    bdim = (BLOCK_SIZE, 1, 1)
+    gridm = (n / bdim[0] + (n % bdim[0] > 0), 1, 1)
+
+    func = mod.get_function("nufft1")
+
+    func(cuda.In(alpha), cuda.In(omega), np.int32(0), cuda.In(mu),
+         np.int32(offset), np.int32(M), tau_re, tau_im,
+         block=bdim, grid=gridm)
+
+    tau = tau_re.get() + 1j * tau_im.get()
+    T = np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(tau)))
+    T = T * len(T)
+
+    low_idx_M = int(-np.ceil((M - 1) / 2.))
+    high_idx_M = int(np.floor((M - 1) / 2.)) + 1
+    idx = np.arange(low_idx_M, high_idx_M)
+    E = np.exp(b * (2 * np.pi * idx / (m * M)) ** 2)
+    E = E.flatten(order='F')
+    offset2 = offset + low_idx_M
+    f = T[int(offset2):int(offset2 + M)] * E
+
+    return f, 0
+
 
 if __name__ == "__main__":
 
@@ -143,4 +270,4 @@ if __name__ == "__main__":
 
     ret = kernel_nufft_2d(alpha, omega, n)
 
-    print ret
+    # print ret
