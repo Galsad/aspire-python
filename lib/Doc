@@ -1,0 +1,87 @@
+
+##### Documentation file ######
+
+This Documentation file contains some information about implementing nufft on GPU and debugging it - this file is NOT the README
+
+The Code
+--------------------------
+The code contains 4 folders: lib, tests, programs and extern
+lib - contains library modules
+extern - contains mostly fortran modules
+tests - contains benchmarking functions and unittests for fft funcs (not for GPU)
+programs - contains bash commands
+
+More details in README
+
+Setting all environment variables is done by running ./init.sh
+
+Writing to GPU with pycuda
+--------------------------
+(1) Installing pycuda with pip
+
+(2) Before using pycuda the following commands in bash should be run:
+    (a) export PATH='/usr/local/cuda-8.0/bin'
+    (b) export LD_Library_path='/usr/local/cuda/lib64'
+    (c) export CUDA_ROOT='/usr/local/cuda/bin'
+
+(3) Run the following commands in python before writing any code:
+    import pycuda.autoinit
+    import pycuda.driver as cuda
+    from pycuda.compiler import SourceModule
+    import pycuda.gpuarray as gpuarray
+
+(4) Writing kernels in pycuda:
+    (1) Kernels should be written outside the main function (defining the kernels in the relevant function is VERY slow)
+    (2) Allocate memory for returning values outside the kernel with GPUArray, don't give to kernels any variables with cuda.out - it might not work well, the following usage is better:
+    my_array = pycuda.gpuarray.empty(M * m, dtype=np.float32)
+    (3) Working with complex numbers in pycuda can be done with the package pycuda-complex.hpp
+    Notice that there is no atomic add for complex numbers so if it's necessary you should implement your own struct
+
+
+py_nufft_GPU
+-----------------------
+I tried to implement nufft on GPU to accelerate running time, unfortunately it's not faster (yet) for small sizes
+My implementation is as follows:
+(1) allocating memory on GPU for results (real part and imaginary part are stored in the same array)
+(2) setting BLOCK_SIZE and GRID_SIZE and run a kernel computing tau (see nufft algorithm)
+(3) getting the results from the GPU and convert tau to complex number array
+(4) run fftshift, fft and ifftshift on result
+(5) manipulate result a bit before returning it
+
+There is an example code in nufft_ref (currently works for 2dforward)
+
+STEP 1 and 2 are pretty fast and it seems there is not a lot to do for profiling (allocating complex64 array might be slow sometimes but it's not the bottleneck)
+STEP 3 is slower because of getting the results from GPU (GPUArray.get is quiet slow from some reason)
+STEP 4 is the slowest, here are some insights about implementing it faster:
+    (a) instead of running fftshift and ifftshift need to run np.roll
+    (b) there are several ways to run fft in python, i tried to use pyfftw (which suppose to be the fastest), there are 5 implementations in this package:
+        (*) numpy implement
+        code example:
+        T = pyfftw.interfaces.numpy_fft.ifftshift(tau2)
+        T = pyfftw.interfaces.numpy_fft.ifft2(T, threads=multiprocessing.cpu_count())
+        T = pyfftw.interfaces.numpy_fft.fftshift(T)
+
+        (*) scipy implement
+        code example:
+        T = pyfftw.interfaces.scipy_fftpack.ifftshift(tau2)
+        T = pyfftw.interfaces.scipy_fftpack.ifft2(T, threads=multiprocessing.cpu_count())
+        T = pyfftw.interfaces.scipy_fftpack.fftshift(T)
+
+        (*) FFTW imaplement
+        code example:
+        T = np.fft.ifftshift(tau2)
+        output = np.zeros_like(T)
+        my_fft = pyfftw.FFTW(T, output, axes=(0, 1), direction='FFTW_BACKWARD', flags=('FFTW_MEASURE', ), threads=multiprocessing.cpu_count(), planning_timelimit=None)
+        my_fft()
+        T = np.fft.fftshift(output)
+
+        (*) fftw.builders (fastest)
+        my_fft = pyfftw.builders.ifft2(T, overwrite_input=True, axes=(0, 1), threads=num_threads, auto_contiguous=True, auto_align_input=False, avoid_copy=True, planner_effort='FFTW_ESTIMATE')
+        ! the arguments the builder gets are critical - changing the arguments may affect the running time dramatically
+
+RESULTS
+-------------
+
+the GPU fft runs a bit faster (no more than 10%) on big images > 1000x1000,
+GPU_nufft_1d currently not working due to some changes
+
