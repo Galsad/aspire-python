@@ -228,7 +228,6 @@ class nudft_gpu():
             """)
 
         bdim = (32, 32, 1)
-
         gridm = ((sz*sz) / bdim[0] + ((sz*sz) % bdim[0] > 0), 1)
 
         sz = np.uint32(sz)
@@ -361,8 +360,6 @@ class nudft_gpu():
              cuda.Out(res),
              block=bdim, grid=gridm)
         return res.reshape([sz, sz, sz]), 0
-
-
 
 if __name__ == "__main__":
     pass

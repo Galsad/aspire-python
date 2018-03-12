@@ -4,6 +4,7 @@ import pycuda.autoinit
 import pycuda.driver as cuda
 from pycuda.compiler import SourceModule
 import pycuda.gpuarray as gpuarray
+import time
 
 b = 0.5993
 m = 2
@@ -109,19 +110,12 @@ def kernel_nufft_2d(alpha, omega, M, precision='single'):
 
                 tau[int(idx[0]), int(idx[1])] = tau[int(idx[0]), int(idx[1])] + tmp2
 
-    # T = np.fft.ifftshift(tau)
-    # print "#####"
-    # print T
-    # T = np.fft.ifft2(T)
-    # print "#####"
-    # print T
-    # T = np.fft.fftshift(T)
-    # print "#####"
-    # print T
 
-    T = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(tau)))
-    # print "&&&&&&"
-    # print T
+    T = np.fft.ifftshift(tau)
+    T = np.fft.ifft2(T)
+    T = np.fft.ifftshift(T)
+
+    #T = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(tau)))
     T = T * len(T) *len(T)
 
     low_idx_M = -np.ceil((M - 1) / 2.)
