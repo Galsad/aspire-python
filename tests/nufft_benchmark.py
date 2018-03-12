@@ -5,11 +5,11 @@ import lib.nudft_gpu
 
 
 class benchmark_nufft(benchmark.Benchmark):
-    #each = 100
+    each = 50
 
     def setUp(self):
         self.size_1d = 1
-        self.size_2d = 1
+        self.size_2d = 600
         self.size_3d = 1
         self.eps = 1.0e-8
         self.type = 'nufft'
@@ -133,22 +133,20 @@ class benchmark_gpu_nufft_100(benchmark_nufft):
 
     def setUp(self):
         self.size_1d = 1
-        self.size_2d = 2000
+        self.size_2d = 600
         self.size_3d = 1
         self.eps = 1.0e-8
         self.type = 'gpu_nufft'
 
-class benchmark_nufft_100(benchmark_nufft):
-    each = 50
-
-    def setUp(self):
-        self.size_1d = 1
-        self.size_2d = 2000
-        self.size_3d = 1
-        self.eps = 1.0e-8
-        self.type = 'nufft'
-
-
+# class benchmark_nufft_100(benchmark_nufft):
+#     each = 50
+#
+#     def setUp(self):
+#         self.size_1d = 1
+#         self.size_2d = 512
+#         self.size_3d = 1
+#         self.eps = 1.0e-8
+#         self.type = 'nufft'
 
 
 if __name__ == '__main__':
