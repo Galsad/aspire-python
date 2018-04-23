@@ -19,5 +19,4 @@ def cfft(x):
 # Returns the aliased n-dimensional inverse FFT of the array x.
 #
 def icfft2(x):
-    return np.fft.fftshift(
-        np.transpose(np.fft.ifft2(np.transpose(np.fft.ifftshift(x)))))
+    return np.fft.fftshift(np.transpose(np.fft.ifft2(np.transpose(np.fft.ifftshift(x)))))

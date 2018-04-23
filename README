@@ -1,6 +1,8 @@
 
 This Code should enable you run basic nufft functions easily
 
+RUNNING THE CODE IS POSSIBLE ONLY ON PYTHON2.7!
+
 The directory contains 4 folders:
 1) extern - fortran files implement nufft functions
 2) lib - python and matlab modules used by functions in programs
@@ -27,3 +29,24 @@ the function nufft1d1f90 you need search for this function in nufft1df90.f, see 
 parameters and change them in nufft1df90.pyf. Notice that you can also determine the type of
 each variable in the input and the output and you can add/change some basic checks on them.
 
+libs
+-----
+libs contains the core modules for nufft, the modules are:
+1) nudft - implementation of nudft in python
+2) nufft_cims - a module wraps all nufft implementations together - also implements a basic class that call to fortrans implementation
+3) nudft_gpu - an implementation of nudft in GPU - compatible with the matlab code
+4) nufft_gpu - an implementation of nufft in GPU - currently works ONLY for forward 2d!
+5) cfft - contains basic fft funcs
+6) nufft_ref - reference code for the GPU code (only for 1d and 2d)
+
+usage example from python
+------------------
+
+(1) from lib.nufft_cims import py_nufft
+(2) py_nufft_obj = py_nufft.factory('nufft')
+(3) fortran_results = py_nufft_obj.forward2d(my_image, fourier_pts)[0]
+
+in line (2) you may choose the type of nufft you wish to run, the possibilities are: nufft, nudft, gpu_nudft, gpu_nufft
+in line (3) you may choose the which version of nufft you want(forward/adjoint and num of dimensions)
+
+currently running nufft from command is possible only for 3d on mrc files

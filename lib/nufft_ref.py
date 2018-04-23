@@ -110,18 +110,16 @@ def kernel_nufft_2d(alpha, omega, M, precision='single'):
 
                 tau[int(idx[0]), int(idx[1])] = tau[int(idx[0]), int(idx[1])] + tmp2
 
-
     T = np.fft.ifftshift(tau)
     T = np.fft.ifft2(T)
     T = np.fft.ifftshift(T)
 
-    #T = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(tau)))
     T = T * len(T) *len(T)
 
     low_idx_M = -np.ceil((M - 1) / 2.)
     high_idx_M = np.floor((M - 1) / 2.) + 1
     idx = np.arange(low_idx_M, high_idx_M)
-    E = np.exp(b * (2. * np.pi * idx / (m * M)) ** 2);
+    E = np.exp(b * (2. * np.pi * idx / (m * M)) ** 2)
     E = E.flatten(order='F')
     E = np.outer(E ,E)
 
@@ -252,7 +250,7 @@ if __name__ == "__main__":
     # ret = kernel_nufft_1d(alpha, omega, n)
 
     ### testing 2D ###
-    n = 100
+    n = 128
 
     alpha = np.arange(-n/2, n/2) / float(n)
     #alpha = np.random.uniform(-np.pi, np.pi, n)

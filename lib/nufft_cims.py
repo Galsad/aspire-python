@@ -7,7 +7,7 @@ from extern import nufft3df90
 from lib import nudft
 import nudft_gpu
 import nufft_gpu
-
+import time
 
 class py_nufft():
     def __init__(self):
@@ -100,9 +100,12 @@ class regular_nufft(py_nufft):
         :return: The Fourier transform of im calculated at the specified
         frequencies
         """
+        t0 = time.time()
         im_f, err = nufft2df90.nufft2d2f90(fourier_pts[1],
                                            fourier_pts[0], iflag,
                                            eps, im)
+        print "time for fortran is: " + str(time.time() - t0)
+
         return im_f, err
 
     @staticmethod

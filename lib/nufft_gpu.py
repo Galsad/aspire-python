@@ -17,7 +17,7 @@ import skcuda.fft as cu_fft
 
 # import pytest_benchmark
 
-BLOCK_SIZE = 1000
+BLOCK_SIZE = 1024
 start = cuda.Event()
 end = cuda.Event()
 num_threads = multiprocessing.cpu_count()
@@ -123,18 +123,6 @@ mod2 = SourceModule("""
         #include <pycuda-complex.hpp>
         #include <stdio.h>
         
-        __device__ double atomicAdd2(double* address, double val)
-        {
-            unsigned long long int* address_as_ull = (unsigned long long int*)address;
-            unsigned long long int old = *address_as_ull, assumed;
-            do {
-                assumed = old;
-                old = atomicCAS(address_as_ull, assumed,
-                    __double_as_longlong(val + __longlong_as_double(assumed)));
-            } while (assumed != old);
-            return __longlong_as_double(old);
-        }
-        
         __global__ void fast_nufft2(int M, float *alpha_re, float *alpha_im, float *omega_x, float *omega_y,float *tau_re, float *tau_im)
         { 
             int k; k = (threadIdx.x + blockDim.x * blockIdx.x);
@@ -143,15 +131,19 @@ mod2 = SourceModule("""
             float b = 0.5993;
             int m=2;
             int q=10;
+            
             if (k >= M){
+                // printf("Index is out of bound\\n");
                 return ;
             }
+            
 
             j1 = j1 - q/2;
             j2 = j2 - q/2;
-
+            
             int idx1 = 0;
             int idx2 = 0;
+            
             // consts
             const float pi = 3.141592653589793;
             const float denominator = 4 * b * pi;
@@ -167,113 +159,50 @@ mod2 = SourceModule("""
             float omega_y_k = omega_y[k];            
 
 
-            //for (j1 = -q/2; j1 < q/2 + 1; j1++){
-            //    for (j2 = -q/2; j2 < q/2 + 1; j2++ ){
-                    idx1 = lround(omega_x_k * m) + j1;
-                    idx2 = lround(omega_x_k * m) + j2;
-
-                    numerator = exp(-1*(((m * omega_x_k - idx1) * (m * omega_x_k - idx1) + (m * omega_y_k - idx2) * (m * omega_y_k - idx2)) / (4*b))) / denominator;
-
-                    idx1 = (int)fmod((float)(idx1 + offset + (m * M)), (float)(M*m));
-                    idx2 = (int)fmod((float)(idx2 + offset + (m * M)), (float)(M*m));
-
-                    add_Re = numerator * alpha_re[k];
-                    add_Im = numerator * alpha_im[k];
+            idx1 = lround(omega_x_k * m) + j1;
+            idx2 = lround(omega_y_k * m) + j2;
                     
-                    //add_Re += real(tau[idx1 * (M * m) + idx2]));
-                    //add_Im += imag(tau[idx1 * (M * m) + idx2]);
-                    
+            numerator = exp(-1*(((m * omega_x_k - idx1) * (m * omega_x_k - idx1) + (m * omega_y_k - idx2) * (m * omega_y_k - idx2)) / (4*b))) / denominator;
+                     
+            idx1 = (int)fmod((float)(idx1 + offset + (m * M)), (float)(M*m));
+            idx2 = (int)fmod((float)(idx2 + offset + (m * M)), (float)(M*m));
 
-                    //add.real(add_Re);
-                    //add.imag(add_Im);
+            add_Re = numerator * alpha_re[k];
+            add_Im = numerator * alpha_im[k];
 
-                    atomicAdd(&tau_im[idx1 * (M * m) + idx2], add_Im);
-                    atomicAdd(&tau_re[idx1 * (M * m) + idx2], add_Re);
-
-                    //tau[idx1 * (M * m) + idx2].real(add_Re);
-                    //tau[idx1 * (M * m) + idx2].imag(add_Im);
-                    
-                    //atomicAdd(real(tau[idx1 * (M * m) + idx2]), add_Re);
-                    //atomicAdd(imag(tau[idx1 * (M * m) + idx2]), add_Im);
-                    
-                    //tau[idx1 * (M * m) + idx2].real(add_Re);
-                    //tau[idx1 * (M * m) + idx2].imag(add_Im);  
-            //  }              
-            //}
+            atomicAdd(&tau_im[idx1 * (M * m) + idx2], add_Im);
+            atomicAdd(&tau_re[idx1 * (M * m) + idx2], add_Re);
         }
         """)
 fast_gpu_fft2 = mod2.get_function("fast_nufft2")
 
-mod3 = SourceModule("""
-    #include <stdio.h>
-    __global__ void Rotate2(float* Source, float* Destination, int size)
-    {
-        int i = (blockIdx.x * blockDim.x + threadIdx.x) % size;
-        int j = (blockIdx.x * blockDim.x + threadIdx.x) / size;;
-        
-        int xc = i - size/2;
-        int yc = j - size/2;
-        
-        if (xc < 0){
-            xc += size;
-        }
-        
-        if (yc < 0){
-            yc += size;
-        }
-        
-        Destination[xc + size*yc] = Source[i + j*size];
-    }
-    """)
-
-my_fftshift_2 = mod3.get_function("Rotate2")
-
 mod4 = SourceModule("""
     #include <stdio.h>
     #include <pycuda-complex.hpp>
-    __global__ void Rotate3(pycuda::complex<float>* Source, pycuda::complex<float>* Destination, int size)
+    __global__ void fftshift(pycuda::complex<float>* Source, pycuda::complex<float>* Destination, int size)
     {
         int i = (blockIdx.x * blockDim.x + threadIdx.x) % size;
-        int j = (blockIdx.x * blockDim.x + threadIdx.x) / size;;
-
-        int xc = i - size/2;
-        int yc = j - size/2;
-
-        if (xc < 0){
-            xc += size;
+        int j = (blockIdx.x * blockDim.x + threadIdx.x) / size;
+        
+        // new indices
+        int xc = i + size/2;
+        int yc = j + size/2;
+        
+        // index is bounded by size
+        if (xc >= size){
+            xc -= size;
         }
 
-        if (yc < 0){
-            yc += size;
+        if (yc >= size){
+            yc -= size;
         }
 
-        Destination[xc + size*yc].real(real(Source[i + j*size]));
-        Destination[xc + size*yc].imag(imag(Source[i + j*size]));
+        Destination[xc + yc*size].real(real(Source[i + j*size]));
+        Destination[xc + yc*size].imag(imag(Source[i + j*size]));
     }
     """)
 
-my_fftshift_3 = mod4.get_function("Rotate3")
-
-# mod3 = SourceModule("""
-#         #include <stdio.h>
-#         #define IDX2R(i, j, N) (((i)*(N)) + (j))
-#         __global__ void 2dfftshift(int N1, int N2, float *array)
-#         {
-#             int i = threadIdx.y + blockDim.y * blockIdx.y;
-#             int j = threadIdx.x + blockDim.x * blockIdx.x;
-#
-#
-#             if (i < N1 && j < N2){
-#                 float a = 1 - 2*((i + j)&1);
-#                 array[IDX2R(i, j, N2)].x *= a;
-#                 array[IDX2R(i, j, N2)].y *= a;
-#             }
-#         }
-#         """)
-#
-#
-# gpu_fft_shift = mod3.get_function("2dfftshift")
-
+my_fftshift = mod4.get_function("fftshift")
 
 class nufft_gpu():
     @staticmethod
@@ -325,87 +254,18 @@ class nufft_gpu():
         return f, 0
 
     @staticmethod
-    def slow_forward2d(alpha, omega, eps=None):
-        b = 0.5993
-        m = 2
-
-        omega = omega.astype(np.float32)
-        n = len(alpha)
-
-        M = n
-        mu = np.round(omega * m).astype(np.int32)
-
-        mu_x = np.ascontiguousarray(mu[:, 0].astype(np.int32))
-        mu_y = np.ascontiguousarray(mu[:, 1].astype(np.int32))
-
-        offset = np.ceil((m * M - 1) / 2.)
-
-        # tau_im = pycuda.gpuarray.zeros([M * m * M * m], dtype=np.float32)
-        # tau_re = pycuda.gpuarray.zeros([M * m * M * m], dtype=np.float32)
-
-        tau = pycuda.gpuarray.zeros([M * m * M * m], dtype=np.complex64)
-
-        alpha = np.ascontiguousarray(alpha.astype(np.complex64))
-
-        # the GPU kernel
-
-        bdim = (BLOCK_SIZE, 1, 1)
-        gridm = (n / bdim[0] + (n % bdim[0] > 0), 1, 1)
-
-        # func = mod2.get_function("nufft2")
-
-        gpu_fft2(np.int32(M), np.int32(offset), cuda.In(alpha),
-                 cuda.In(omega[:, 0]),
-                 cuda.In(omega[:, 1]), cuda.In(mu_x), cuda.In(mu_y), tau,
-                 block=bdim, grid=gridm)
-
-        tau = (tau_re.get() + 1j * tau_im.get())
-        tau = tau.reshape(m * M, m * M, order='F')
-
-        tau = tau.astype(np.complex64)
-
-        T = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(tau)))
-
-        T = T * len(T) * len(T)
-
-        low_idx_M = -np.ceil((M - 1) / 2.)
-        high_idx_M = np.floor((M - 1) / 2.) + 1
-        idx = np.arange(low_idx_M, high_idx_M)
-        E = np.exp(b * (2. * np.pi * idx / (m * M)) ** 2)
-        E = E.flatten(order='F')
-        E = np.outer(E, E)
-
-        offset2 = offset + low_idx_M
-
-        f = T[int(offset2):int(offset2) + M,
-            int(offset2): int(offset2) + M] * E
-        return f, 0
-
-    # preperation for running
-    size = 2048
-
-
-    #global plan
-    #global tau_im_gpu
-    #global tau_re_gpu
-    #global T_res_gpu
-    #global T_res_gpu2
-
-    #plan = skcuda.fft.Plan((size, size), np.complex64, np.complex64)
-
-    #tau_im_gpu = gpuarray.to_gpu(np.zeros([size, size], dtype=np.float32))
-    #tau_re_gpu = gpuarray.to_gpu(np.zeros([size, size], dtype=np.float32))
-    #T_res_gpu = gpuarray.to_gpu(np.zeros([size, size], dtype=np.complex64))
-    #T_res_gpu2 = gpuarray.to_gpu(np.zeros([size, size], dtype=np.complex64))
-
-    @staticmethod
     def forward2d(alpha, omega, eps=None):
         t0 = time.time()
-        omega2 = omega.astype(np.float32)
-        M = len(alpha)
 
+        # prepare parameters for running
+        omega2 = omega.astype(np.float32)
+        alpha_real2 = np.ascontiguousarray(alpha.real)
+        alpha_imag2 = np.ascontiguousarray(alpha.imag)
+        M = len(alpha)
+        global size
         size = M * m
 
+        # allocating memory for tau if it's the first time this code runs
         if "tau_im_gpu" not in globals() and "tau_re_gpu" not in globals():
             global tau_im_gpu
             global tau_re_gpu
@@ -417,22 +277,21 @@ class nufft_gpu():
             tau_im_gpu.fill(0)
             tau_re_gpu.fill(0)
 
+        # allocating memory for results if it's the first time this code runs
         if "T_res_gpu " not in globals() and "T_res_gpu2" not in globals():
             global T_res_gpu
             global T_res_gpu2
             T_res_gpu = gpuarray.to_gpu(np.ascontiguousarray(np.zeros([size, size], dtype=np.complex64)))
-            T_res_gpu2 = gpuarray.to_gpu(np.ascontiguousarray(np.zeros([size, size], dtype=np.complex64)))
+            T_res_gpu2 = gpuarray.to_gpu(np.ascontiguousarray(np.zeros([size ,size], dtype=np.complex64)))
             print "some memory was allocated on GPU"
 
         else:
+            # fill arrays in 0's for reuse
             T_res_gpu.fill(0)
             T_res_gpu2.fill(0)
 
-        alpha_real2 = np.ascontiguousarray(alpha.real)
-        alpha_imag2 = np.ascontiguousarray(alpha.imag)
-
         # the GPU kernel
-        bdim = (BLOCK_SIZE / 100, 10, 10)
+        bdim = (BLOCK_SIZE/121, 11, 11)
         gridm = ((M / bdim[0] + (M % bdim[0] > 0)), 1, 1)
 
         fast_gpu_fft2(np.int32(M), cuda.In(alpha_real2), cuda.In(alpha_imag2),
@@ -441,23 +300,24 @@ class nufft_gpu():
 
         tau_gpu = tau_re_gpu + 1j*tau_im_gpu
 
-        bdim = (1024, 1, 1)
-        gridm = ((len(tau_re_gpu) / bdim[0] + (size % bdim[0] > 0)), 1, 1)
+        bdim = (min(1024, size*size), 1, 1)
+        gridm = ((len(tau_re_gpu) / bdim[0] + (len(tau_re_gpu) % bdim[0] > 0)), 1, 1)
 
-        my_fftshift_3(tau_gpu, T_res_gpu2, np.int32(size), block=bdim, grid=gridm)
+        my_fftshift(tau_gpu, T_res_gpu2, np.int32(size), block=bdim, grid=gridm)
 
         if "plan" not in globals():
+            print "Planning"
             global plan
-            plan = skcuda.fft.Plan((size, size), np.complex64, np.complex64)
+            plan = cu_fft.Plan((size, size), np.complex64, np.complex64)
 
         if plan.shape != (size, size):
+            print "Planning"
             global plan
-            plan = skcuda.fft.Plan((size, size), np.complex64, np.complex64)
+            plan = cu_fft.Plan((size, size), np.complex64, np.complex64)
 
-        skcuda.fft.ifft(T_res_gpu2, T_res_gpu, plan, True)
-
-        my_fftshift_3(T_res_gpu, T_res_gpu2, np.int32(size),
-                      block=bdim, grid=gridm)
+        cu_fft.ifft(T_res_gpu2, T_res_gpu, plan, True)
+        my_fftshift(T_res_gpu, T_res_gpu2, np.int32(size),
+                    block=bdim, grid=gridm)
 
         T_res_gpu2 *= (size * size)
 
@@ -475,8 +335,7 @@ class nufft_gpu():
         T = T_res_gpu2.get()
         f = T[offset:offset2, offset: offset2] * E
 
-        print "diff6 is: ", time.time() - t0
-        return f , 0
+        return f, 0
 
     @staticmethod
     def forward3d(fourier_pts, sig, eps=None):
@@ -500,15 +359,20 @@ class nufft_gpu():
 
 
 if __name__ == "__main__":
-    for i in range(6):
-        n = 512
+    # delete global variables
+    for x in globals():
+        del x
 
-        alpha = np.arange(-n / 2, n / 2) / float(n)
-        # alpha = np.random.uniform(-np.pi, np.pi, n)
+    for i in range(6):
+        n = 33
+
+        #alpha = np.arange(-n / 2, n / 2) / float(n)
+        alpha = np.random.uniform(-np.pi, np.pi, n)
         alpha = alpha.astype(np.complex64)
-        omega_x = np.arange(-n / 2, n / 2)
-        # omega_x = np.random.uniform(-n/2, n/2, n)
-        omega_y = np.arange(-n / 2, n / 2)
+        #omega_x = np.arange(-n / 2, n / 2)
+        omega_x = np.random.uniform(-n/2, n/2, n)
+        #omega_y = np.arange(-n / 2, n / 2)
+        omega_y = np.random.uniform(-n / 2, n / 2, n)
         omega = np.array([omega_x, omega_y]).transpose()
 
         #    test_my_stuff(benchmark, alpha, omega, 32)
